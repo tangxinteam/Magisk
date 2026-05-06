@@ -30,13 +30,10 @@ data class LocalModule(
     private val removeFile = base.getChildFile("remove")
     private val disableFile = base.getChildFile("disable")
     private val updateFile = base.getChildFile("update")
-    val zygiskFolder = base.getChildFile("zygisk")
 
     val updated get() = updateFile.exists()
-    val isRiru = (id == "riru-core") || base.getChildFile("riru").exists()
-    val isZygisk = zygiskFolder.exists()
-    val zygiskUnloaded = zygiskFolder.getChildFile("unloaded").exists()
     val hasAction = base.getChildFile("action.sh").exists()
+    var isMetamodule = false
 
     var enable: Boolean
         get() = !disableFile.exists()
@@ -83,6 +80,7 @@ data class LocalModule(
                 "author" -> author = value
                 "description" -> description = value
                 "updateJson" -> updateUrl = value
+                "metamodule" -> isMetamodule = value == "1" || value.equals("true", true)
             }
         }
     }

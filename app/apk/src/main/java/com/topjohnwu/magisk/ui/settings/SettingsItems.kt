@@ -205,44 +205,6 @@ object Magisk : BaseSettingsItem.Section() {
     override val title = CoreR.string.magisk.asText()
 }
 
-object Zygisk : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.zygisk.asText()
-    override val description get() =
-        if (mismatch) CoreR.string.reboot_apply_change.asText()
-        else CoreR.string.settings_zygisk_summary.asText()
-    override var value
-        get() = Config.zygisk
-        set(value) {
-            Config.zygisk = value
-            notifyPropertyChanged(BR.description)
-        }
-    val mismatch get() = value != Info.isZygiskEnabled
-}
-
-object DenyList : BaseSettingsItem.Toggle() {
-    override val title = CoreR.string.settings_denylist_title.asText()
-    override val description get() = CoreR.string.settings_denylist_summary.asText()
-
-    override var value = Config.denyList
-        set(value) {
-            field = value
-            val cmd = if (value) "enable" else "disable"
-            Shell.cmd("magisk --denylist $cmd").submit { result ->
-                if (result.isSuccess) {
-                    Config.denyList = value
-                } else {
-                    field = !value
-                    notifyPropertyChanged(BR.checked)
-                }
-            }
-        }
-}
-
-object DenyListConfig : BaseSettingsItem.Blank() {
-    override val title = CoreR.string.settings_denylist_config_title.asText()
-    override val description = CoreR.string.settings_denylist_config_summary.asText()
-}
-
 // --- Superuser
 
 object Tapjack : BaseSettingsItem.Toggle() {

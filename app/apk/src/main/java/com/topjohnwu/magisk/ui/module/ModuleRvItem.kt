@@ -29,20 +29,11 @@ class LocalModuleRvItem(
     val noticeText: TextHolder
 
     init {
-        val isZygisk = item.isZygisk
-        val isRiru = item.isRiru
-        val zygiskUnloaded = isZygisk && item.zygiskUnloaded
-
-        showNotice = zygiskUnloaded ||
-            (Info.isZygiskEnabled && isRiru) ||
-            (!Info.isZygiskEnabled && isZygisk)
+        showNotice = item.isMetamodule
         showAction = item.hasAction && !showNotice
         noticeText =
-            when {
-                zygiskUnloaded -> CoreR.string.zygisk_module_unloaded.asText()
-                isRiru -> CoreR.string.suspend_text_riru.asText(CoreR.string.zygisk.asText())
-                else -> CoreR.string.suspend_text_zygisk.asText(CoreR.string.zygisk.asText())
-            }
+            if (item.isMetamodule) CoreR.string.metamodule.asText()
+            else TextHolder.empty
     }
 
     @get:Bindable

@@ -63,9 +63,6 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
                 Magisk,
                 SystemlessHosts
             ))
-            if (Const.Version.atLeast_24_0()) {
-                list.addAll(listOf(Zygisk, DenyList, DenyListConfig))
-            }
         }
 
         // Superuser
@@ -107,11 +104,9 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             LanguageSystem -> view.activity.startActivity(LocaleSetting.localeSettingsIntent)
             AddShortcut -> AddHomeIconEvent().publish()
             SystemlessHosts -> createHosts()
-            DenyListConfig -> SettingsFragmentDirections.actionSettingsFragmentToDenyFragment().navigate()
             UpdateChannel -> openUrlIfNecessary(view)
             is Hide -> viewModelScope.launch { AppMigration.hide(view.activity, item.value) }
             Restore -> viewModelScope.launch { AppMigration.restore(view.activity) }
-            Zygisk -> if (Zygisk.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
             else -> Unit
         }
     }
