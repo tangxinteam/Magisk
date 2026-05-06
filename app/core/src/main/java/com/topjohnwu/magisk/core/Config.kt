@@ -21,7 +21,6 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_MULTIUSER_MODE = "multiuser_mode"
         const val SU_MNT_NS = "mnt_ns"
         const val SU_BIOMETRIC = "su_biometric"
-        const val ZYGISK = "zygisk"
         const val BOOTLOOP = "bootloop"
         const val SU_MANAGER = "requester"
         const val KEYSTORE = "keystore"
@@ -99,7 +98,6 @@ object Config : PreferenceConfig, DBConfig {
     @JvmField var keepVerity = false
     @JvmField var keepEnc = false
     @JvmField var recovery = false
-    var denyList = false
 
     var askedHome by preference(Key.ASKED_HOME, false)
     var bootloop by dbSettings(Key.BOOTLOOP, 0)
@@ -130,7 +128,6 @@ object Config : PreferenceConfig, DBConfig {
             LocaleSetting.instance.setLocale(value)
         }
 
-    var zygisk by dbSettings(Key.ZYGISK, Info.isEmulator)
     var suManager by dbStrings(Key.SU_MANAGER, "", true)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
 

@@ -128,27 +128,10 @@
                         </LinearLayout>
 
                         <LinearLayout
-                            android:id="@+id/home_device_details_zygisk"
-                            style="@style/W.Home.Item"
-                            app:layout_constraintStart_toStartOf="@+id/home_magisk_installed_version"
-                            app:layout_constraintTop_toBottomOf="@+id/home_magisk_installed_version">
-
-                            <TextView
-                                style="@style/W.Home.ItemContent"
-                                android:text="@string/zygisk" />
-
-                            <TextView
-                                style="@style/W.Home.ItemContent.Right"
-                                android:text="@{Info.isZygiskEnabled ? @string/yes : @string/no}"
-                                tools:text="Yes" />
-
-                        </LinearLayout>
-
-                        <LinearLayout
                             android:id="@+id/home_device_details_ramdisk"
                             style="@style/W.Home.Item.Bottom"
                             app:layout_constraintStart_toStartOf="@+id/home_magisk_installed_version"
-                            app:layout_constraintTop_toBottomOf="@+id/home_device_details_zygisk">
+                            app:layout_constraintTop_toBottomOf="@+id/home_magisk_installed_version">
 
                             <TextView
                                 style="@style/W.Home.ItemContent"

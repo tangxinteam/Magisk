@@ -8,7 +8,6 @@
     <string name="install">Install</string>
     <string name="section_home">Home</string>
     <string name="section_theme">Themes</string>
-    <string name="denylist">DenyList</string>
 
     <!--Home-->
     <string name="no_connection">No connection available</string>
