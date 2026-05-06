@@ -33,7 +33,7 @@ class LocalModuleRvItem(
         showAction = item.hasAction && !showNotice
         noticeText =
             if (item.isMetamodule) CoreR.string.metamodule.asText()
-            else TextHolder.empty
+            else TextHolder.EMPTY
     }
 
     @get:Bindable
