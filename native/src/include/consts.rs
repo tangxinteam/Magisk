@@ -19,6 +19,7 @@ pub const LOGFILE: &str = "/cache/magisk.log";
 pub const SECURE_DIR: &str = "/data/adb";
 pub const MODULEROOT: &str = concatcp!(SECURE_DIR, "/modules");
 pub const MODULEUPGRADE: &str = concatcp!(SECURE_DIR, "/modules_update");
+pub const METAMODULE: &str = concatcp!(SECURE_DIR, "/metamodule");
 pub const DATABIN: &str = concatcp!(SECURE_DIR, "/magisk");
 pub const MAGISKDB: &str = concatcp!(SECURE_DIR, "/magisk.db");
 

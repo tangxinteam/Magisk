@@ -671,6 +671,22 @@ install_module() {
   MODAUTH=$(grep_prop author $TMPDIR/module.prop)
   MODPATH=$MODULEROOT/$MODID
 
+  # Check metamodule constraint
+  local IS_METAMODULE=$(grep_prop metamodule $TMPDIR/module.prop)
+  if [ "$IS_METAMODULE" = "1" ] || [ "$(toupper $IS_METAMODULE)" = "TRUE" ]; then
+    for mod in /data/adb/modules/*; do
+      [ -d "$mod" ] || continue
+      local other_id=$(grep_prop id $mod/module.prop)
+      [ "$other_id" = "$MODID" ] && continue
+      local other_meta=$(grep_prop metamodule $mod/module.prop)
+      if [ "$other_meta" = "1" ] || [ "$(toupper $other_meta)" = "TRUE" ]; then
+        [ -f "$mod/remove" ] && continue
+        [ -f "$mod/disable" ] && continue
+        abort "! Another metamodule already exists"
+      fi
+    done
+  fi
+
   # Create mod paths
   rm -rf $MODPATH
   mkdir -p $MODPATH

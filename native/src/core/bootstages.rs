@@ -5,6 +5,7 @@ use crate::ffi::{
     get_magisk_tmp,
 };
 use crate::logging::setup_logfile;
+use crate::metamodule::{exec_metamodule_script, exec_metamount, ensure_metamodule_symlink};
 use crate::module::disable_modules;
 use crate::mount::setup_preinit_dir;
 use crate::resetprop::get_prop;
@@ -147,7 +148,12 @@ impl MagiskD {
         }
 
         exec_common_scripts(cstr!("post-fs-data"));
+        ensure_metamodule_symlink();
+        exec_metamodule_script(cstr!("post-fs-data.sh"));
         self.handle_modules();
+        exec_metamount();
+        exec_metamodule_script(cstr!("post-mount.sh"));
+        exec_module_scripts(cstr!("post-mount.sh"), self.module_list.get().unwrap_or(&vec![]));
 
         false
     }
@@ -157,6 +163,7 @@ impl MagiskD {
         info!("** late_start service mode running");
 
         exec_common_scripts(cstr!("service"));
+        exec_metamodule_script(cstr!("service.sh"));
         if let Some(module_list) = self.module_list.get() {
             exec_module_scripts(cstr!("service"), module_list);
         }
@@ -177,6 +184,10 @@ impl MagiskD {
 
         setup_preinit_dir();
         self.ensure_manager();
+        exec_metamodule_script(cstr!("boot-completed.sh"));
+        if let Some(module_list) = self.module_list.get() {
+            exec_module_scripts(cstr!("boot-completed.sh"), module_list);
+        }
     }
 
     pub fn boot_stage_handler(&self, client: UnixStream, code: RequestCode) {

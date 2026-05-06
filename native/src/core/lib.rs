@@ -30,6 +30,7 @@ mod daemon;
 mod db;
 mod logging;
 mod magisk;
+mod metamodule;
 mod module;
 mod mount;
 mod package;
