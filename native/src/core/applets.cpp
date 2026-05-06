@@ -15,10 +15,6 @@ constexpr Applet applets[] = {
     { "resetprop", resetprop_main },
 };
 
-constexpr Applet private_applets[] = {
-    { "zygisk", zygisk_main },
-};
-
 int main(int argc, char *argv[]) {
     if (argc < 1)
         return 1;
@@ -31,17 +27,7 @@ int main(int argc, char *argv[]) {
     umask(0);
 
     if (argv[0][0] == '\0') {
-        // When argv[0] is an empty string, we're calling private applets
-        if (argc < 2)
-            return 1;
-        --argc;
-        ++argv;
-        for (const auto &app : private_applets) {
-            if (argv[0] == app.name) {
-                return app.fn(argc, argv);
-            }
-        }
-        fprintf(stderr, "%s: applet not found\n", argv[0]);
+        fprintf(stderr, "no private applets available\n");
         return 1;
     }
 

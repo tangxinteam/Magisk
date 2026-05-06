@@ -5,7 +5,7 @@ use crate::consts::{
 };
 use crate::db::Sqlite3;
 use crate::ffi::{
-    ModuleInfo, RequestCode, RespondCode, denylist_handler, get_magisk_tmp, scan_deny_apps,
+    ModuleInfo, RequestCode, RespondCode, get_magisk_tmp,
 };
 use crate::logging::{android_logging, magisk_logging, setup_logfile, start_log_daemon};
 use crate::module::remove_modules;
@@ -15,7 +15,6 @@ use crate::selinux::restore_tmpcon;
 use crate::socket::{IpcRead, IpcWrite};
 use crate::su::SuInfo;
 use crate::thread::ThreadPool;
-use crate::zygisk::ZygiskState;
 use base::const_format::concatcp;
 use base::{
     AtomicArc, BufReadExt, FileAttr, FsPathBuilder, LoggedResult, ReadExt, ResultExt, Utf8CStr,
@@ -32,7 +31,6 @@ use std::os::fd::{AsFd, AsRawFd, IntoRawFd, RawFd};
 use std::os::unix::net::{UCred, UnixListener, UnixStream};
 use std::process::{Command, exit};
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::nonpoison::Mutex;
 use std::time::Duration;
 
@@ -59,8 +57,6 @@ pub struct MagiskD {
     pub manager_info: Mutex<ManagerInfo>,
     pub boot_stage_lock: Mutex<BootState>,
     pub module_list: OnceLock<Vec<ModuleInfo>>,
-    pub zygisk_enabled: AtomicBool,
-    pub zygisk: Mutex<ZygiskState>,
     pub cached_su_info: AtomicArc<SuInfo>,
     pub sdk_int: i32,
     pub is_emulator: bool,
@@ -102,12 +98,6 @@ impl MagiskD {
                 setup_logfile();
             }
             RequestCode::STOP_DAEMON => {
-                // Unmount all overlays
-                denylist_handler(-1);
-
-                // Restore native bridge property
-                self.zygisk.lock().restore_prop();
-
                 client.write_pod(&0).log_ok();
 
                 // Terminate the daemon!
@@ -119,19 +109,8 @@ impl MagiskD {
 
     fn handle_request_async(&self, mut client: UnixStream, code: RequestCode, cred: UCred) {
         match code {
-            RequestCode::DENYLIST => {
-                denylist_handler(client.into_raw_fd());
-            }
             RequestCode::SUPERUSER => {
                 self.su_daemon_handler(client, cred);
-            }
-            RequestCode::ZYGOTE_RESTART => {
-                info!("** zygote restarted");
-                self.prune_su_access();
-                scan_deny_apps();
-                if self.zygisk_enabled.load(Ordering::Relaxed) {
-                    self.zygisk.lock().reset(false);
-                }
             }
             RequestCode::SQLITE_CMD => {
                 self.db_exec_for_cli(client).ok();
@@ -143,9 +122,6 @@ impl MagiskD {
                 if do_reboot {
                     self.reboot();
                 }
-            }
-            RequestCode::ZYGISK => {
-                self.zygisk_handler(client);
             }
             _ => {}
         }
@@ -198,9 +174,8 @@ impl MagiskD {
 
         let is_root = cred.uid == 0;
         let is_shell = cred.uid == 2000;
-        let is_zygote = &context == "u:r:zygote:s0";
 
-        if !is_root && !is_zygote && !self.is_client(cred.pid.unwrap_or(-1)) {
+        if !is_root && !self.is_client(cred.pid.unwrap_or(-1)) {
             // Unsupported client state
             client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
             return;
@@ -223,9 +198,7 @@ impl MagiskD {
             RequestCode::POST_FS_DATA
             | RequestCode::LATE_START
             | RequestCode::BOOT_COMPLETE
-            | RequestCode::ZYGOTE_RESTART
             | RequestCode::SQLITE_CMD
-            | RequestCode::DENYLIST
             | RequestCode::STOP_DAEMON => {
                 if !is_root {
                     client.write_pod(&RespondCode::ROOT_REQUIRED.repr).log_ok();
@@ -235,13 +208,6 @@ impl MagiskD {
             RequestCode::REMOVE_MODULES => {
                 if !is_root && !is_shell {
                     // Only allow root and ADB shell to remove modules
-                    client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
-                    return;
-                }
-            }
-            RequestCode::ZYGISK => {
-                if !is_zygote {
-                    // Invalid client context
                     client.write_pod(&RespondCode::ACCESS_DENIED.repr).log_ok();
                     return;
                 }

@@ -12,10 +12,8 @@ use nix::fcntl::OFlag;
 use nix::mount::MsFlags;
 use nix::unistd::UnlinkatFlags;
 use std::collections::BTreeMap;
-use std::os::fd::IntoRawFd;
 use std::path::{Component, Path};
 use std::ptr;
-use std::sync::atomic::Ordering;
 
 const MAGISK_BIN_INJECT_PARTITIONS: [&Utf8CStr; 4] = [
     cstr!("/system/"),
@@ -564,62 +562,6 @@ fn inject_magisk_bins(system: &mut FsNode, is_emulator: bool) {
     }
 }
 
-fn inject_zygisk_bins(name: &str, system: &mut FsNode) {
-    #[cfg(target_pointer_width = "64")]
-    let has_32_bit = cstr!("/system/bin/linker").exists();
-
-    #[cfg(target_pointer_width = "32")]
-    let has_32_bit = true;
-
-    if has_32_bit {
-        let lib = system
-            .children()
-            .map(|c| c.entry("lib".to_string()).or_insert_with(FsNode::new_dir));
-        if let Some(FsNode::Directory { children }) = lib {
-            let mut bin_path = cstr::buf::default().join_path(get_magisk_tmp());
-
-            #[cfg(target_pointer_width = "64")]
-            bin_path.append_path("magisk32");
-
-            #[cfg(target_pointer_width = "32")]
-            bin_path.append_path("magisk");
-
-            // There are some devices that announce ABI as 64 bit only, but ship with linker
-            // because they make use of a special 32 bit to 64 bit translator (such as tango).
-            // In this case, magisk32 does not exist, so inserting it will cause bind mount
-            // failure and affect module mount. Native bridge injection does not support these
-            // kind of translators anyway, so simply check if magisk32 exists here.
-            if bin_path.exists() {
-                children.insert(
-                    name.to_string(),
-                    FsNode::File {
-                        src: bin_path.to_owned(),
-                    },
-                );
-            }
-        }
-    }
-
-    #[cfg(target_pointer_width = "64")]
-    if cstr!("/system/bin/linker64").exists() {
-        let lib64 = system
-            .children()
-            .map(|c| c.entry("lib64".to_string()).or_insert_with(FsNode::new_dir));
-        if let Some(FsNode::Directory { children }) = lib64 {
-            let bin_path = cstr::buf::default()
-                .join_path(get_magisk_tmp())
-                .join_path("magisk");
-
-            children.insert(
-                name.to_string(),
-                FsNode::File {
-                    src: bin_path.to_owned(),
-                },
-            );
-        }
-    }
-}
-
 fn upgrade_modules() -> LoggedResult<()> {
     let mut upgrade = Directory::open(cstr!(MODULEUPGRADE)).silent()?;
     let root = Directory::open(cstr!(MODULEROOT))?;
@@ -698,10 +640,9 @@ pub fn remove_modules() {
     cstr!(MODULEROOT).remove_all().log_ok();
 }
 
-fn collect_modules(zygisk_enabled: bool, open_zygisk: bool) -> Vec<ModuleInfo> {
+fn collect_modules() -> Vec<ModuleInfo> {
     let mut modules = Vec::new();
 
-    #[allow(unused_mut)] // It's possible that z32 and z64 are unused
     for_each_module(|e| {
         let name = e.name();
         let dir = e.open_as_dir()?;
@@ -720,101 +661,12 @@ fn collect_modules(zygisk_enabled: bool, open_zygisk: bool) -> Vec<ModuleInfo> {
             return Ok(());
         }
 
-        let mut z32 = -1;
-        let mut z64 = -1;
-
-        let is_zygisk = dir.contains_path(cstr!("zygisk"));
-
-        if zygisk_enabled {
-            // Riru and its modules are not compatible with zygisk
-            if name == "riru-core" || dir.contains_path(cstr!("riru")) {
-                return Ok(());
-            }
-
-            fn open_fd_safe(dir: &Directory, name: &Utf8CStr) -> i32 {
-                dir.open_as_file_at(name, OFlag::O_RDONLY | OFlag::O_CLOEXEC, 0)
-                    .log()
-                    .map(IntoRawFd::into_raw_fd)
-                    .unwrap_or(-1)
-            }
-
-            if open_zygisk && is_zygisk {
-                #[cfg(target_arch = "arm")]
-                {
-                    z32 = open_fd_safe(&dir, cstr!("zygisk/armeabi-v7a.so"));
-                }
-                #[cfg(target_arch = "aarch64")]
-                {
-                    z32 = open_fd_safe(&dir, cstr!("zygisk/armeabi-v7a.so"));
-                    z64 = open_fd_safe(&dir, cstr!("zygisk/arm64-v8a.so"));
-                }
-                #[cfg(target_arch = "x86")]
-                {
-                    z32 = open_fd_safe(&dir, cstr!("zygisk/x86.so"));
-                }
-                #[cfg(target_arch = "x86_64")]
-                {
-                    z32 = open_fd_safe(&dir, cstr!("zygisk/x86.so"));
-                    z64 = open_fd_safe(&dir, cstr!("zygisk/x86_64.so"));
-                }
-                #[cfg(target_arch = "riscv64")]
-                {
-                    z64 = open_fd_safe(&dir, cstr!("zygisk/riscv64.so"));
-                }
-                dir.unlink_at(cstr!("zygisk/unloaded"), UnlinkatFlags::NoRemoveDir)
-                    .ok();
-            }
-        } else {
-            // Ignore zygisk modules when zygisk is not enabled
-            if is_zygisk {
-                info!("{name}: ignore");
-                return Ok(());
-            }
-        }
         modules.push(ModuleInfo {
             name: name.to_string(),
-            z32,
-            z64,
         });
         Ok(())
     })
     .log_ok();
-
-    if zygisk_enabled && open_zygisk {
-        let mut use_memfd = true;
-        let mut convert_to_memfd = |fd: i32| -> i32 {
-            if fd < 0 {
-                return fd;
-            }
-            if use_memfd {
-                let memfd = unsafe {
-                    libc::syscall(
-                        libc::SYS_memfd_create,
-                        raw_cstr!("jit-cache"),
-                        libc::MFD_CLOEXEC,
-                    ) as i32
-                };
-                if memfd >= 0 {
-                    unsafe {
-                        if libc::sendfile(memfd, fd, ptr::null_mut(), i32::MAX as usize) < 0 {
-                            libc::close(memfd);
-                        } else {
-                            libc::close(fd);
-                            return memfd;
-                        }
-                    }
-                }
-                // Some error occurred, don't try again
-                use_memfd = false;
-            }
-            fd
-        };
-
-        modules.iter_mut().for_each(|m| {
-            m.z32 = convert_to_memfd(m.z32);
-            m.z64 = convert_to_memfd(m.z64);
-        });
-    }
 
     modules
 }
@@ -824,12 +676,11 @@ impl MagiskD {
         setup_module_mount();
         upgrade_modules().ok();
 
-        let zygisk = self.zygisk_enabled.load(Ordering::Acquire);
-        let modules = collect_modules(zygisk, false);
+        let modules = collect_modules();
         exec_module_scripts(cstr!("post-fs-data"), &modules);
 
         // Recollect modules (module scripts could remove itself)
-        let modules = collect_modules(zygisk, true);
+        let modules = collect_modules();
         self.apply_modules(&modules);
 
         self.module_list.set(modules).ok();
@@ -878,20 +729,12 @@ impl MagiskD {
         // Step 2: Inject custom files
         //
         // Magisk provides some built-in functionality that requires augmenting the filesystem.
-        // We expose several cmdline tools (e.g. su) into PATH, and the zygisk shared library
-        // has to also be added into the default LD_LIBRARY_PATH for code injection.
+        // We expose several cmdline tools (e.g. su) into PATH.
         // We directly inject file nodes into the virtual filesystem tree we built in the previous
         // step, treating Magisk just like a special "module".
 
         if get_magisk_tmp() != "/sbin" || get_path_env().split(":").all(|s| s != "/sbin") {
             inject_magisk_bins(&mut system, self.is_emulator);
-        }
-
-        // Handle zygisk
-        if self.zygisk_enabled.load(Ordering::Acquire) {
-            let mut zygisk = self.zygisk.lock();
-            zygisk.set_prop();
-            inject_zygisk_bins(&zygisk.lib_name, &mut system);
         }
 
         // Step 3: Extract all supported read-only partition roots

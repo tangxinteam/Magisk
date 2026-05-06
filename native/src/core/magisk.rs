@@ -1,6 +1,6 @@
 use crate::consts::{APPLET_NAMES, MAGISK_VER_CODE, MAGISK_VERSION, POST_FS_DATA_WAIT_TIME};
 use crate::daemon::connect_daemon;
-use crate::ffi::{RequestCode, denylist_cli, get_magisk_tmp, install_module, unlock_blocks};
+use crate::ffi::{RequestCode, get_magisk_tmp, install_module, unlock_blocks};
 use crate::mount::find_preinit_device;
 use crate::selinux::restorecon;
 use crate::socket::{Decodable, Encodable};
@@ -30,14 +30,13 @@ Advanced Options (Internal APIs):
    --daemon                  manually start magisk daemon
    --stop                    remove all magisk changes and stop daemon
    --[init trigger]          callback on init triggers. Valid triggers:
-                             post-fs-data, service, boot-complete, zygote-restart
+                             post-fs-data, service, boot-complete
    --unlock-blocks           set BLKROSET flag to OFF for all block devices
    --restorecon              restore selinux context on Magisk files
    --clone-attr SRC DEST     clone permission, owner, and selinux context
    --clone SRC DEST          clone SRC to DEST
    --sqlite SQL              exec SQL commands to Magisk database
    --path                    print Magisk tmpfs mount path
-   --denylist ARGS           denylist config CLI
    --preinit-device          resolve a device to store preinit files
 
 Available applets:
@@ -67,14 +66,12 @@ enum MagiskAction {
     PostFsData(PostFsData),
     Service(ServiceCmd),
     BootComplete(BootComplete),
-    ZygoteRestart(ZygoteRestart),
     UnlockBlocks(UnlockBlocks),
     RestoreCon(RestoreCon),
     CloneAttr(CloneAttr),
     CloneFile(CloneFile),
     Sqlite(Sqlite),
     Path(PathCmd),
-    DenyList(DenyList),
     PreInitDevice(PreInitDevice),
 }
 
@@ -129,10 +126,6 @@ struct ServiceCmd {}
 struct BootComplete {}
 
 #[derive(FromArgs)]
-#[argh(subcommand, name = "--zygote-restart")]
-struct ZygoteRestart {}
-
-#[derive(FromArgs)]
 #[argh(subcommand, name = "--unlock-blocks")]
 struct UnlockBlocks {}
 
@@ -168,13 +161,6 @@ struct Sqlite {
 #[derive(FromArgs)]
 #[argh(subcommand, name = "--path")]
 struct PathCmd {}
-
-#[derive(FromArgs)]
-#[argh(subcommand, name = "--denylist")]
-struct DenyList {
-    #[argh(positional, greedy)]
-    args: Vec<String>,
-}
 
 #[derive(FromArgs)]
 #[argh(subcommand, name = "--preinit-device")]
@@ -235,9 +221,6 @@ impl MagiskAction {
             BootComplete(_) => {
                 let _ = connect_daemon(RequestCode::BOOT_COMPLETE, false)?;
             }
-            ZygoteRestart(_) => {
-                let _ = connect_daemon(RequestCode::ZYGOTE_RESTART, false)?;
-            }
             UnlockBlocks(_) => {
                 unlock_blocks();
             }
@@ -268,9 +251,6 @@ impl MagiskAction {
                 } else {
                     println!("{tmp}");
                 }
-            }
-            DenyList(self::DenyList { mut args }) => {
-                return Ok(denylist_cli(&mut args));
             }
             PreInitDevice(_) => {
                 let name = find_preinit_device();

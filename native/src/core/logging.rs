@@ -73,14 +73,6 @@ pub fn magisk_logging() {
     update_logger(|logger| logger.write = magisk_log_write);
 }
 
-pub fn zygisk_logging() {
-    fn zygisk_log_write(level: LogLevel, msg: &Utf8CStr) {
-        android_log_write(level, msg);
-        zygisk_log_to_pipe(level_to_prio(level), msg);
-    }
-    update_logger(|logger| logger.write = zygisk_log_write);
-}
-
 #[derive(Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 struct LogMeta {
@@ -129,82 +121,6 @@ fn with_logd_fd<R, F: FnOnce(&File) -> io::Result<R>>(f: F) {
 
 fn magisk_log_to_pipe(prio: i32, msg: &Utf8CStr) {
     with_logd_fd(|logd| write_log_to_pipe(logd, prio, msg));
-}
-
-// SAFETY: zygisk client code runs single threaded, so no need to prevent data race
-static ZYGISK_LOGD: AtomicI32 = AtomicI32::new(-1);
-
-pub fn zygisk_close_logd() {
-    unsafe {
-        libc::close(ZYGISK_LOGD.swap(-1, Ordering::Relaxed));
-    }
-}
-
-pub fn zygisk_get_logd() -> i32 {
-    // If we don't have the log pipe set, open the log pipe FIFO. This could actually happen
-    // multiple times in the zygote daemon (parent process) because we had to close this
-    // file descriptor to prevent crashing.
-    //
-    // For some reason, zygote sanitizes and checks FDs *before* forking. This results in the fact
-    // that *every* time before zygote forks, it has to close all logging related FDs in order
-    // to pass FD checks, just to have it re-initialized immediately after any
-    // logging happens ¯\_(ツ)_/¯.
-    //
-    // To be consistent with this behavior, we also have to close the log pipe to magiskd
-    // to make zygote NOT crash if necessary. We accomplish this by hooking __android_log_close
-    // and closing it at the same time as the rest of logging FDs.
-
-    let mut raw_fd = ZYGISK_LOGD.load(Ordering::Relaxed);
-    if raw_fd < 0 {
-        android_logging();
-        let path = cstr::buf::default()
-            .join_path(get_magisk_tmp())
-            .join_path(LOG_PIPE);
-        // Open as RW as sometimes it may block
-        if let Ok(fd) = path.open(OFlag::O_RDWR | OFlag::O_CLOEXEC) {
-            // Only re-enable zygisk logging if success
-            zygisk_logging();
-            raw_fd = fd.into_raw_fd();
-            unsafe {
-                libc::close(ZYGISK_LOGD.swap(raw_fd, Ordering::Relaxed));
-            }
-        } else {
-            return -1;
-        }
-    }
-    raw_fd
-}
-
-fn zygisk_log_to_pipe(prio: i32, msg: &Utf8CStr) {
-    let fd = zygisk_get_logd();
-    if fd < 0 {
-        // Cannot talk to pipe, abort
-        return;
-    }
-
-    // Block SIGPIPE
-    let mut mask = SigSet::empty();
-    mask.add(Signal::SIGPIPE);
-    let orig_mask = mask.thread_swap_mask(SigmaskHow::SIG_SETMASK);
-
-    let logd = ManuallyDrop::new(unsafe { File::from_raw_fd(fd) });
-    let result = write_log_to_pipe(&logd, prio, msg);
-
-    // Consume SIGPIPE if exists, then restore mask
-    if let Ok(orig_mask) = orig_mask {
-        unsafe {
-            // Unfortunately nix does not have an abstraction over sigtimedwait.
-            // Fallback to use raw libc function calls.
-            let ts: timespec = std::mem::zeroed();
-            sigtimedwait(mask.as_ref(), null_mut(), &ts);
-        }
-        orig_mask.thread_set_mask().ok();
-    }
-
-    // If any error occurs, shut down the logd pipe
-    if result.is_err() {
-        zygisk_close_logd();
-    }
 }
 
 // The following is implementation for the logging daemon

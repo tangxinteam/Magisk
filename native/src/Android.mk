@@ -21,13 +21,7 @@ LOCAL_SRC_FILES := \
     core/utils.cpp \
     core/core-rs.cpp \
     core/resetprop/sys.cpp \
-    core/su/su.cpp \
-    core/zygisk/entry.cpp \
-    core/zygisk/module.cpp \
-    core/zygisk/hook.cpp \
-    core/deny/cli.cpp \
-    core/deny/utils.cpp \
-    core/deny/logcat.cpp
+    core/su/su.cpp
 
 LOCAL_LDLIBS := -llog
 LOCAL_LDFLAGS := -Wl,--dynamic-list=src/exported_sym.txt

@@ -25,7 +25,6 @@ inline int connect_daemon(RequestCode req) {
 
 // Multi-call entrypoints
 int su_client_main(int argc, char *argv[]);
-int zygisk_main(int argc, char *argv[]);
 
 struct ModuleInfo;
 
@@ -70,16 +69,6 @@ void exec_module_scripts(Utf8CStr stage, const rust::Vec<ModuleInfo> &module_lis
 void exec_script(Utf8CStr script);
 void clear_pkg(const char *pkg, int user_id);
 [[noreturn]] void install_module(Utf8CStr file);
-
-// Denylist
-extern std::atomic<bool> denylist_enforced;
-int denylist_cli(rust::Vec<rust::String> &args);
-void denylist_handler(int client);
-void initialize_denylist();
-void scan_deny_apps();
-bool is_deny_target(int uid, std::string_view process);
-void revert_unmount(int pid = -1) noexcept;
-void update_deny_flags(int uid, rust::Str process, uint32_t &flags);
 
 // MagiskSU
 void exec_root_shell(int client, int pid, SuRequest &req, MntNsMode mode);

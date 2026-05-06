@@ -1,5 +1,5 @@
 use crate::consts::{MODULEMNT, MODULEROOT, PREINITDEV, PREINITMIRR, WORKERDIR};
-use crate::ffi::{get_magisk_tmp, resolve_preinit_dir, switch_mnt_ns};
+use crate::ffi::{get_magisk_tmp, resolve_preinit_dir};
 use crate::resetprop::get_prop;
 use base::{
     FsPathBuilder, LibcReturn, LoggedResult, MountInfo, ResultExt, Utf8CStr, Utf8CStrBuf, cstr,
@@ -228,43 +228,4 @@ pub fn find_preinit_device() -> String {
         .to_string()
 }
 
-pub fn revert_unmount(pid: i32) {
-    if pid > 0 {
-        if switch_mnt_ns(pid) != 0 {
-            return;
-        }
-        debug!("denylist: handling PID=[{}]", pid);
-    }
 
-    let mut targets = Vec::new();
-
-    // Unmount Magisk tmpfs and mounts from module files
-    for info in parse_mount_info("self") {
-        if info.source == "magisk" || info.root.starts_with("/adb/modules") {
-            targets.push(info.target);
-        }
-    }
-
-    if targets.is_empty() {
-        return;
-    }
-
-    let mut prev: Option<PathBuf> = None;
-    targets.sort();
-    targets.retain(|target| {
-        if let Some(prev) = &prev
-            && Path::new(target).starts_with(prev)
-        {
-            return false;
-        }
-        prev = Some(PathBuf::from(target.clone()));
-        true
-    });
-
-    for mut target in targets {
-        let target = Utf8CStr::from_string(&mut target);
-        if target.unmount().is_ok() {
-            debug!("denylist: Unmounted ({})", target);
-        }
-    }
-}
