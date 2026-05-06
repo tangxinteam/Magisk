@@ -1,11 +1,11 @@
-use crate::consts::{METAMODULE, MODULEROOT, MODULEUPGRADE};
+use crate::consts::{MODULEROOT, MODULEUPGRADE};
 use crate::daemon::MagiskD;
 use crate::ffi::{ModuleInfo, exec_module_scripts, exec_script};
 use crate::metamodule::{exec_metauninstall_script, remove_symlink};
 use crate::resetprop::load_prop_file;
 use base::{
     DirEntry, Directory, FsPathBuilder, LoggedResult, ResultExt, SilentLogExt, Utf8CStr,
-    Utf8CStrBuf, cstr, info,
+    cstr, info,
 };
 use nix::fcntl::OFlag;
 use nix::unistd::UnlinkatFlags;
@@ -88,7 +88,7 @@ pub fn remove_modules() {
             run_uninstall_script(name);
         }
         // If this is the metamodule, remove symlink
-        let mut path = cstr::buf::default().join_path(MODULEROOT).join_path(name);
+        let path = cstr::buf::default().join_path(MODULEROOT).join_path(name);
         if is_metamodule_path(&path) {
             remove_symlink();
         }
@@ -110,7 +110,7 @@ fn collect_modules() -> Vec<ModuleInfo> {
             if dir.contains_path(cstr!("uninstall.sh")) {
                 run_uninstall_script(name);
             }
-            let mut path = cstr::buf::default().join_path(MODULEROOT).join_path(name);
+        let path = cstr::buf::default().join_path(MODULEROOT).join_path(name);
             if is_metamodule_path(&path) {
                 remove_symlink();
             }
@@ -142,7 +142,7 @@ impl MagiskD {
 
         // Load module props before executing scripts
         for info in &modules {
-            let mut prop_path = cstr::buf::default()
+            let prop_path = cstr::buf::default()
                 .join_path(MODULEROOT)
                 .join_path(&info.name)
                 .join_path("system.prop");

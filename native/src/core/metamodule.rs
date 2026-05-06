@@ -1,5 +1,7 @@
+#![allow(dead_code)]
+
 use crate::consts::{METAMODULE, MODULEROOT, MODULEUPGRADE};
-use base::{Directory, FsPathBuilder, LoggedResult, ResultExt, Utf8CStr, Utf8CStrBuf, Utf8CString, cstr, info, warn};
+use base::{Directory, FsPathBuilder, LoggedResult, ResultExt, Utf8CStr, Utf8CString, cstr, info};
 use nix::fcntl::OFlag;
 
 const METAMOUNT_SH: &str = "metamount.sh";
@@ -10,7 +12,7 @@ const REMOVE_MARKER: &str = "remove";
 const DISABLE_MARKER: &str = "disable";
 
 pub fn is_metamodule(module_dir: &Utf8CStr) -> bool {
-    let mut prop_path = cstr::buf::default().join_path(module_dir).join_path("module.prop");
+    let prop_path = cstr::buf::default().join_path(module_dir).join_path("module.prop");
     if let Ok(file) = prop_path.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC) {
         let reader = std::io::BufReader::new(file);
         for line in std::io::BufRead::lines(reader) {

@@ -10,7 +10,7 @@ use nix::sys::stat::{Mode, SFlag, mknod};
 use num_traits::AsPrimitive;
 use std::cmp::Ordering::{Greater, Less};
 use std::ffi::OsStr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // Linux allocated devices: 240-254 are reserved for LOCAL/EXPERIMENTAL use.
 const DYNAMIC_MAJOR_MIN: u32 = 240;
