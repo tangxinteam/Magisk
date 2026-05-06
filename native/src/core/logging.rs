@@ -7,9 +7,8 @@ use base::{
     cstr, libc, new_daemon_thread, raw_cstr, update_logger,
 };
 use bytemuck::{Pod, Zeroable, bytes_of, write_zeroes};
-use libc::{PIPE_BUF, c_char, localtime_r, sigtimedwait, time_t, timespec, tm};
+use libc::{PIPE_BUF, c_char, localtime_r, time_t, tm};
 use nix::fcntl::OFlag;
-use nix::sys::signal::{SigSet, SigmaskHow, Signal};
 use nix::unistd::{Gid, Uid, chown, getpid, gettid};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::FromPrimitive;
@@ -17,11 +16,8 @@ use std::cmp::min;
 use std::fmt::Write as _;
 use std::fs::File;
 use std::io::{IoSlice, Read, Write};
-use std::mem::ManuallyDrop;
 use std::os::fd::{FromRawFd, IntoRawFd, RawFd};
-use std::ptr::null_mut;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::nonpoison::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{fs, io};

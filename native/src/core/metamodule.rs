@@ -28,7 +28,7 @@ pub fn is_metamodule(module_dir: &Utf8CStr) -> bool {
 pub fn find_metamodule() -> Option<Utf8CString> {
     let mut result = None;
     let _ = || -> LoggedResult<()> {
-        let root = Directory::open(cstr!(MODULEROOT))?;
+        let mut root = Directory::open(cstr!(MODULEROOT))?;
         while let Some(e) = root.read()? {
             if !e.is_dir() || e.name() == ".core" {
                 continue;
@@ -37,7 +37,7 @@ pub fn find_metamodule() -> Option<Utf8CString> {
             if dir.contains_path(cstr!(REMOVE_MARKER)) || dir.contains_path(cstr!(DISABLE_MARKER)) {
                 continue;
             }
-            let mut path = cstr::buf::default().join_path(MODULEROOT).join_path(e.name());
+            let path = cstr::buf::default().join_path(MODULEROOT).join_path(e.name());
             if is_metamodule(&path) {
                 result = Some(path.to_owned());
                 return Ok(());
