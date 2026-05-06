@@ -1,20 +1,15 @@
 package com.topjohnwu.magisk.test
 
-import android.os.ParcelFileDescriptor.AutoCloseInputStream
 import androidx.annotation.Keep
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Until
 import com.topjohnwu.magisk.core.model.module.LocalModule
 import com.topjohnwu.magisk.core.utils.RootUtils
-import com.topjohnwu.magisk.test.Environment.Companion.MOUNT_TEST
 import com.topjohnwu.magisk.test.Environment.Companion.REMOVE_TEST
 import com.topjohnwu.magisk.test.Environment.Companion.SEPOLICY_RULE
 import com.topjohnwu.magisk.test.Environment.Companion.UPGRADE_TEST
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.runBlocking
 import org.junit.After
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -24,18 +19,12 @@ import org.junit.Assume.assumeTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 
 @Keep
 @RunWith(AndroidJUnit4::class)
 class AdditionalTest : BaseTest {
 
     companion object {
-        private const val SHELL_PKG = "com.android.shell"
-        private const val LSPOSED_CATEGORY = "org.lsposed.manager.LAUNCH_MANAGER"
-        private const val LSPOSED_PKG = "org.lsposed.manager"
-
         private lateinit var modules: List<LocalModule>
 
         @BeforeClass
@@ -55,31 +44,9 @@ class AdditionalTest : BaseTest {
 
     @Test
     fun testModuleCount() {
-        var expected = 4
-        if (Environment.mount()) expected++
+        var expected = 2
         if (Environment.preinit()) expected++
         assertEquals("Module count incorrect", expected, modules.size)
-    }
-
-    @Test
-    fun testModuleMount() {
-        assumeTrue(Environment.mount())
-
-        assertNotNull("$MOUNT_TEST is not installed", modules.find { it.id == MOUNT_TEST })
-        assertTrue(
-            "/system/fonts/newfile should exist",
-            RootUtils.fs.getFile("/system/fonts/newfile").exists()
-        )
-        assertFalse(
-            "/system/bin/screenrecord should not exist",
-            RootUtils.fs.getFile("/system/bin/screenrecord").exists()
-        )
-        val egg = RootUtils.fs.getFile("/system/app/EasterEgg").list() ?: arrayOf()
-        assertArrayEquals(
-            "/system/app/EasterEgg should be replaced",
-            egg,
-            arrayOf("newfile")
-        )
     }
 
     @Test

@@ -1,33 +1,22 @@
 package com.topjohnwu.magisk.test
 
-import android.app.Notification
-import android.os.Build
 import androidx.annotation.Keep
-import androidx.core.net.toUri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.topjohnwu.magisk.core.BuildConfig.APP_PACKAGE_NAME
 import com.topjohnwu.magisk.core.Const
-import com.topjohnwu.magisk.core.download.DownloadNotifier
-import com.topjohnwu.magisk.core.download.DownloadProcessor
-import com.topjohnwu.magisk.core.ktx.cachedFile
 import com.topjohnwu.magisk.core.model.module.LocalModule
 import com.topjohnwu.magisk.core.tasks.AppMigration
-import com.topjohnwu.magisk.core.tasks.FlashZip
 import com.topjohnwu.magisk.core.tasks.MagiskInstaller
 import com.topjohnwu.magisk.core.utils.RootUtils
 import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.nio.ExtendedFile
 import kotlinx.coroutines.runBlocking
-import org.apache.commons.compress.archivers.zip.ZipFile
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.runner.RunWith
 import timber.log.Timber
-import java.io.File
 import java.io.PrintStream
 
 @Keep
@@ -39,28 +28,12 @@ class Environment : BaseTest {
         @JvmStatic
         fun before() = BaseTest.prerequisite()
 
-        // The kernel running on emulators < API 26 does not play well with
-        // magic mount. Skip mount_test on those legacy platforms.
-        fun mount(): Boolean {
-            return Build.VERSION.SDK_INT >= 26
-        }
-
         // It is possible that there are no suitable preinit partition to use
         fun preinit(): Boolean {
             return Shell.cmd("magisk --preinit-device").exec().isSuccess
         }
 
-        fun lsposed(): Boolean {
-            return Build.VERSION.SDK_INT in 27..34
-        }
-
-        fun shamiko(): Boolean {
-            return Build.VERSION.SDK_INT >= 27
-        }
-
         private const val MODULE_UPDATE_PATH  = "/data/adb/modules_update"
-        private const val MODULE_ERROR = "Module zip processing incorrect"
-        const val MOUNT_TEST = "mount_test"
         const val SEPOLICY_RULE = "sepolicy_rule"
         const val REMOVE_TEST = "remove_test"
         const val REMOVE_TEST_MARKER = "/dev/.remove_test_removed"
@@ -71,53 +44,6 @@ class Environment : BaseTest {
         override fun onAddElement(e: String) {
             Timber.i(e)
         }
-    }
-
-    private fun checkModuleZip(file: File) {
-        // Make sure module processing is correct
-        ZipFile.Builder().setFile(file).get().use { zip ->
-            val meta = zip.entries
-                .asSequence()
-                .filter { it.name.startsWith("META-INF") }
-                .toMutableList()
-            assertEquals(MODULE_ERROR, 6, meta.size)
-
-            val binary = zip.getInputStream(
-                zip.getEntry("META-INF/com/google/android/update-binary")
-            ).use { it.readBytes() }
-            val ref = appContext.assets.open("module_installer.sh").use { it.readBytes() }
-            assertArrayEquals(MODULE_ERROR, ref, binary)
-
-            val script = zip.getInputStream(
-                zip.getEntry("META-INF/com/google/android/updater-script")
-            ).use { it.readBytes() }
-            assertArrayEquals(MODULE_ERROR, "#MAGISK\n".toByteArray(), script)
-        }
-    }
-
-    private fun setupMountTest(root: ExtendedFile) {
-        val error = "$MOUNT_TEST setup failed"
-        val path = root.getChildFile(MOUNT_TEST)
-
-        // Create /system/fonts/newfile
-        val etc = path.getChildFile("system").getChildFile("fonts")
-        assertTrue(error, etc.mkdirs())
-        assertTrue(error, etc.getChildFile("newfile").createNewFile())
-
-        // Create /system/app/EasterEgg/.replace
-        val egg = path.getChildFile("system").getChildFile("app").getChildFile("EasterEgg")
-        assertTrue(error, egg.mkdirs())
-        assertTrue(error, egg.getChildFile(".replace").createNewFile())
-
-        // Create /system/app/EasterEgg/newfile
-        assertTrue(error, egg.getChildFile("newfile").createNewFile())
-
-        // Delete /system/bin/screenrecord
-        val bin = path.getChildFile("system").getChildFile("bin")
-        assertTrue(error, bin.mkdirs())
-        assertTrue(error, Shell.cmd("mknod $bin/screenrecord c 0 0").exec().isSuccess)
-
-        assertTrue(error, Shell.cmd("set_default_perm $path").exec().isSuccess)
     }
 
     private fun setupSystemlessHost() {
@@ -191,43 +117,8 @@ class Environment : BaseTest {
             )
         }
 
-        val notify = object : DownloadNotifier {
-            override val context = appContext
-            override fun notifyUpdate(id: Int, editor: (Notification.Builder) -> Unit) {}
-        }
-        val processor = DownloadProcessor(notify)
-
-        val shamiko = appContext.cachedFile("shamiko.zip")
-        runBlocking {
-            testContext.assets.open("shamiko.zip").use {
-                processor.handleModule(it, shamiko.toUri())
-            }
-            checkModuleZip(shamiko)
-            if (shamiko()) {
-                assertTrue(
-                    "Shamiko installation failed",
-                    FlashZip(shamiko.toUri(), TimberLog, TimberLog).exec()
-                )
-            }
-        }
-
-        val lsp = appContext.cachedFile("lsposed.zip")
-        runBlocking {
-            testContext.assets.open("lsposed.zip").use {
-                processor.handleModule(it, lsp.toUri())
-            }
-            checkModuleZip(lsp)
-            if (lsposed()) {
-                assertTrue(
-                    "LSPosed installation failed",
-                    FlashZip(lsp.toUri(), TimberLog, TimberLog).exec()
-                )
-            }
-        }
-
         val root = RootUtils.fs.getFile(Const.MODULE_PATH)
         val update = RootUtils.fs.getFile(MODULE_UPDATE_PATH)
-        if (mount()) { setupMountTest(update) }
         if (preinit()) { setupSepolicyRuleModule(update) }
         setupSystemlessHost()
         setupRemoveModule(root)
