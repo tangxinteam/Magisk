@@ -1,0 +1,68 @@
+name: KernelPatch Native CI
+
+on:
+  push:
+    branches: [magisk-ng-dev, master]
+    paths:
+      - "kernel/**"
+      - ".github/workflows/native-ci.yml"
+  pull_request:
+    branches: [magisk-ng-dev, master]
+  workflow_dispatch:
+
+jobs:
+  build-kernel:
+    name: Build KernelPatch kpimg
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu make
+
+      - name: Build KernelPatch
+        working-directory: kernel
+        run: |
+          make clean
+          make CC=aarch64-linux-gnu-gcc LD=aarch64-linux-gnu-ld \
+               AS=aarch64-linux-gnu-as OBJCOPY=aarch64-linux-gnu-objcopy \
+               ANDROID=1
+
+      - name: Upload kpimg artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: kpimg-${{ github.sha }}
+          path: kernel/kpimg
+          compression-level: 9
+
+      - name: Check kpimg size
+        run: ls -lh kernel/kpimg
+
+  build-tools:
+    name: Build kptools
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make cmake
+
+      - name: Build kptools
+        working-directory: tools
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          make -j$(nproc)
+
+      - name: Upload kptools artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: kptools-${{ github.sha }}
+          path: tools/build/kptools
+          compression-level: 9
