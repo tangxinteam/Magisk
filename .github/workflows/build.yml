@@ -78,7 +78,7 @@ jobs:
     name: Test API ${{ matrix.version }} (x86_64)
     runs-on: ubuntu-24.04
     needs: build
-    if: ${{ github.event_name != 'push' }}
+    if: ${{ github.event_name == 'pull_request' }}
     strategy:
       fail-fast: false
       matrix:
@@ -120,7 +120,7 @@ jobs:
     name: Test API ${{ matrix.version }} (x86)
     runs-on: ubuntu-24.04
     needs: build
-    if: ${{ github.event_name != 'push' }}
+    if: ${{ github.event_name == 'pull_request' }}
     strategy:
       fail-fast: false
       matrix:
@@ -159,7 +159,7 @@ jobs:
     name: Test ${{ matrix.device }}
     runs-on: ubuntu-24.04
     needs: build
-    if: ${{ github.event_name != 'push' }}
+    if: ${{ github.event_name == 'pull_request' }}
     env:
       CF_HOME: /home/runner/aosp_cf_phone
     strategy:
