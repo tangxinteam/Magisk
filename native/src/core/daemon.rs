@@ -384,8 +384,8 @@ fn daemon_entry() {
     sock_path.follow_link().chmod(0o666).log_ok();
     let file_con = magisk_file_con();
     let file_con_cstr = std::ffi::CString::new(file_con.as_bytes()).unwrap();
-    unsafe {
-        sock_path.set_secontext(file_con_cstr.as_c_str()).log_ok();
+    if let Ok(utf8_con) = Utf8CStr::from_cstr(file_con_cstr.as_c_str()) {
+        sock_path.set_secontext(utf8_con).log_ok();
     }
 
     // Loop forever to listen for requests
