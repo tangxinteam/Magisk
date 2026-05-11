@@ -1,5 +1,5 @@
 use crate::SePolicy;
-use crate::consts::{SEPOL_FILE_TYPE, SEPOL_LOG_TYPE, SEPOL_PROC_DOMAIN};
+use crate::consts::{SEPOL_FILE_TYPE, SEPOL_LOG_TYPE, get_sepol_proc_domain};
 use crate::ffi::Xperm;
 use base::{LogLevel, set_log_level_state};
 
@@ -14,7 +14,7 @@ macro_rules! rules {
         vec!["servicemanager", "vndservicemanager", "hwservicemanager"]
     };
     (@args [proc]) => {
-        vec![SEPOL_PROC_DOMAIN]
+        vec![get_sepol_proc_domain()]
     };
     (@args [file]) => {
         vec![SEPOL_FILE_TYPE]
@@ -23,7 +23,7 @@ macro_rules! rules {
         vec![SEPOL_LOG_TYPE]
     };
     (@args proc) => {
-        SEPOL_PROC_DOMAIN
+        get_sepol_proc_domain()
     };
     (@args file) => {
         SEPOL_FILE_TYPE
@@ -124,11 +124,6 @@ impl SePolicy {
 
             // Let init run stuffs
             allow(["init"], [proc], ["process"], all);
-
-            // Zygisk rules
-            allow(["zygote"], ["zygote"], ["process"], ["execmem"]);
-            allow(["zygote"], ["fs_type"], ["filesystem"], ["unmount"]);
-            allow(["system_server"], ["system_server"], ["process"], ["execmem"]);
 
             // Shut llkd up
             dontaudit(["llkd"], [proc], ["process"], ["ptrace"]);

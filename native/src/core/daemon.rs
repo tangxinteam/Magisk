@@ -1,7 +1,7 @@
 use crate::bootstages::BootState;
 use crate::consts::{
-    MAGISK_FILE_CON, MAGISK_FULL_VER, MAGISK_PROC_CON, MAGISK_VER_CODE, MAGISK_VERSION,
-    MAIN_CONFIG, MAIN_SOCKET, ROOTMNT, ROOTOVL,
+    MAGISK_FILE_CON, MAGISK_FULL_VER, MAGISK_VER_CODE, MAGISK_VERSION,
+    MAIN_CONFIG, MAIN_SOCKET, ROOTMNT, ROOTOVL, get_sepol_proc_domain,
 };
 use crate::db::Sqlite3;
 use crate::ffi::{
@@ -265,12 +265,14 @@ fn daemon_entry() {
 
     setsid().log_ok();
 
-    // Make sure the current context is magisk
+    // Make sure the current context is randomized domain
     if let Ok(mut current) =
         cstr!("/proc/self/attr/current").open(OFlag::O_WRONLY | OFlag::O_CLOEXEC)
     {
-        let con = cstr!(MAGISK_PROC_CON);
-        current.write_all(con.as_bytes_with_nul()).log_ok();
+        let con = get_sepol_proc_domain();
+        let mut ctx = format!("u:r:{}:s0", con);
+        ctx.push('\0');
+        current.write_all(ctx.as_bytes()).log_ok();
     }
 
     start_log_daemon();

@@ -120,5 +120,10 @@ object Info {
         Config.recovery = getBool("RECOVERYMODE")
         Config.keepVerity = getBool("KEEPVERITY")
         Config.keepEnc = getBool("KEEPFORCEENCRYPT")
+
+        sepolDomain = runCatching { fastCmd(shell, "cat /metadata/watchdog/magisk/.domain") }.getOrDefault("")
     }
+
+    var sepolDomain = ""
+        private set
 }

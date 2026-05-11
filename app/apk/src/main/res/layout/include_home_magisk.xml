@@ -128,10 +128,27 @@
                         </LinearLayout>
 
                         <LinearLayout
+                            android:id="@+id/home_magisk_sepol_domain"
+                            style="@style/W.Home.Item"
+                            app:layout_constraintStart_toStartOf="@+id/home_magisk_installed_version"
+                            app:layout_constraintTop_toBottomOf="@+id/home_magisk_installed_version">
+
+                            <TextView
+                                style="@style/W.Home.ItemContent"
+                                android:text="SEPolicy Domain" />
+
+                            <TextView
+                                style="@style/W.Home.ItemContent.Right"
+                                android:text="@{viewModel.sepolDomain}"
+                                tools:text="magisk" />
+
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:id="@+id/home_device_details_ramdisk"
                             style="@style/W.Home.Item.Bottom"
                             app:layout_constraintStart_toStartOf="@+id/home_magisk_installed_version"
-                            app:layout_constraintTop_toBottomOf="@+id/home_magisk_installed_version">
+                            app:layout_constraintTop_toBottomOf="@+id/home_magisk_sepol_domain">
 
                             <TextView
                                 style="@style/W.Home.ItemContent"
