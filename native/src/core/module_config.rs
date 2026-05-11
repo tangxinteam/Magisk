@@ -60,7 +60,8 @@ pub fn get_config(module_id: &str, key: &str, temp: bool) -> Option<String> {
 
 pub fn set_config(module_id: &str, key: &str, value: &str, temp: bool) {
     let module_dir = get_module_config_dir(module_id);
-    cstr!(&module_dir).mkdir(0o700).log_ok();
+    let dir_path = cstr::buf::default().join_path(&module_dir);
+    dir_path.mkdir(0o700).log_ok();
     
     let config_file = if temp { TEMP_CONFIG } else { PERSIST_CONFIG };
     let path = cstr::buf::default()
