@@ -1,3 +1,8 @@
+/*
+ * Modified from KernelSU (https://github.com/tiann/KernelSU)
+ * KernelSU is licensed under GPL-3.0
+ */
+
 use crate::consts::SECURE_DIR;
 use base::const_format::concatcp;
 use base::{Directory, FsPathBuilder, LoggedResult, ResultExt, Utf8CStr, cstr};

@@ -1,3 +1,8 @@
+/*
+ * Modified from KernelSU (https://github.com/tiann/KernelSU)
+ * KernelSU is licensed under GPL-3.0
+ */
+
 #![allow(dead_code)]
 
 use crate::consts::{MAGISK_VER_CODE, MAGISK_VERSION, METAMODULE, MODULEROOT, MODULEUPGRADE};
